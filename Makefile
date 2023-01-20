@@ -18,7 +18,6 @@ tests/ringbuffer_test: tests/ringbuffer_test.c ringbuffer.c trb.h
 ringbuffer_test_run: tests/ringbuffer_test
 	tests/ringbuffer_test
 
-
 tests/ringbuffer_plot: tests/ringbuffer_plot.c ringbuffer.c trb.h
 	gcc -I. $(DEBUG) -Wall -o "$@" tests/ringbuffer_plot.c ringbuffer.c
 
