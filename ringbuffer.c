@@ -7,7 +7,7 @@
 void ringbuffer_init(rb_st *rb, RB_IDXTYPE len) {
 	//struct *rb = malloc(sizeof struct ringbuffer_st);
 	if (len<1) len=1; // minimum. sorry.
-	rb->d = malloc(sizeof(RB_DTYPE) * len);
+	if (!(rb->d = malloc(sizeof(RB_DTYPE) * len))) abort();
 	rb->hd=rb->tl=0;
 	rb->sz = len;
 }
@@ -31,8 +31,13 @@ void ringbuffer_minmax(rb_st *rb) {
 	}
 }
 
-/* This call writes to a temporary buffer, then updates *rb */
+/* This call writes to a temporary buffer, then updates *rb
+ * window_size must be >= 2, and is divided by 2,
+ *  and really is best understood as needing to be an odd number
+ *  (start = location - windowsize/2)
+ */
 void ringbuffer_median_filter(rb_st *rb, RB_IDXTYPE window_size) {
+	if (window_size < 2) abort(); // better than nothing
     RB_DTYPE temp_data[sizeof(RB_DTYPE) * rb->sz];
     for (int i = 0; i < rb->sz; i++) {
         temp_data[i] = rb->d[i];
@@ -51,9 +56,11 @@ void ringbuffer_median_filter(rb_st *rb, RB_IDXTYPE window_size) {
     }
 }
 
-/* I kept my buffer sizes at 20, and window sizes at 3. I presume the segfault is not from this being too large for memory.  Here's the latest version of filter2 (the one which takes two buffers): */
-
-/* Filter2 writes to a caller-provided secondary ringbuffer */
+/* Filter2 writes to a caller-provided secondary ringbuffer
+ * window_size must be >= 2, and is divided by 2,
+ *  and really is best understood as needing to be an odd number
+ *  (start = location - windowsize/2)
+ */
 void ringbuffer_median_filter2(rb_st *rb, rb_st *rb_med, RB_IDXTYPE window_size) {
     //RB_DTYPE *temp_data = alloca(sizeof(RB_DTYPE) * rb->sz);
     for (int i = 0; i < rb->sz; i++) {

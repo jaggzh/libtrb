@@ -1,8 +1,5 @@
-/*
-This is my initial test code of the ringbuffer.
-Can you modify it to continue running, instead of being limited to 30 iterations, and also implement a live text-based plot of the data with the median filtered data in the same plot, but a different color.	Use ANSI escape (terminal) sequences, and cursor positioning, etc. for it.	If you know other good ways of doing the terminal plot, please advise.
-*/
-
+/* Generate random numbers for tiny ring buffer, with periodic spikes/outliers.
+ * Plot the raw and median filter output. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -12,27 +9,27 @@ Can you modify it to continue running, instead of being limited to 30 iterations
 #include <limits.h>
 #include <string.h>
 
-#include "trb.h"
+#include "trb.h" // ringbuffer lib's main .h
 
 void plot_data_blah(rb_st *rb, rb_st *rb_med);
 void plot_data(rb_st *rb, rb_st *rb_med);
 
 rb_st rb_real;
 rb_st *rb=&rb_real;
-rb_st rb_med_real; /* Version with median run on it each time the buffer is full */
+rb_st rb_med_real; // Storage of median filter output
 rb_st *rb_med=&rb_med_real;
 
 int opt_plot_vals=0;
 int opt_plot=1;
 
 int main(int argc, char *argv[]) {
-	int rbsize=20;
+	int rbsize=30;
 	if (argc>1 && !strcmp(argv[1], "-n")) opt_plot_vals=1, opt_plot=0;
 	ringbuffer_init(rb, rbsize);
 	ringbuffer_init(rb_med, rbsize);
 	ringbuffer_setall(rb, 0);
 	ringbuffer_setall(rb_med, 0);
-	int window_size = 7;
+	int window_size = 20;
 	srand(time(0));
 	rb->mn = UINT16_MAX;
 	rb->mx = 0;
@@ -119,7 +116,7 @@ void plot_data(rb_st *rb, rb_st *rb_med) {
         printf(ABGRE "\033[%dC+\r", colm);
         printf(AYEL "\033[%dC*\r", col);
         /* printf(" -->%d %d\n", col, colm); */
-        usleep(30000);
+        usleep(20000);
         PNL;
     }
 }
