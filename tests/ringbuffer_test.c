@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "trb.h"
+#include "../trb.h" // ringbuffer lib's main .h
 
 #define RB_BUF_SIZE 5
 

@@ -4,12 +4,14 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#ifndef ARDUINO
 #include <sys/ioctl.h> // ioctl()
+#endif
 #include <signal.h>    // raise() SIG*
 #include <limits.h>
 #include <string.h>
 
-#include "trb.h" // ringbuffer lib's main .h
+#include "../trb.h" // ringbuffer lib's main .h
 
 void plot_data_blah(rb_st *rb, rb_st *rb_med);
 void plot_data(rb_st *rb, rb_st *rb_med);
@@ -103,21 +105,26 @@ int main(int argc, char *argv[]) {
 }
 
 void get_rows_cols(uint16_t *r, uint16_t *c) {
-	struct winsize w;
-	if (isatty(fileno(stdout))) {
-		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-		/* if (w.ws_col > 95) raise(SIGINT); */
-		/* printf("rc: %d %d\n", w.ws_row, w.ws_col); */
-		/* static int i=0; */
-		/* if (i++ > 4000) exit(0); */
-		/* 24784 6260 */
-		/* 	min=1002, max=2098 */
-		*r = w.ws_row;
-		*c = w.ws_col;
-	} else {
+	#ifndef ARDUINO
+		struct winsize w;
+		if (isatty(fileno(stdout))) {
+			ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+			/* if (w.ws_col > 95) raise(SIGINT); */
+			/* printf("rc: %d %d\n", w.ws_row, w.ws_col); */
+			/* static int i=0; */
+			/* if (i++ > 4000) exit(0); */
+			/* 24784 6260 */
+			/* 	min=1002, max=2098 */
+			*r = w.ws_row;
+			*c = w.ws_col;
+		} else {
+			*r = DEFAULT_ROWS;
+			*c = DEFAULT_COLS;
+		}
+	#else
 		*r = DEFAULT_ROWS;
 		*c = DEFAULT_COLS;
-	}
+	#endif
 }
 
 void plot_val(RB_DTYPE v, RB_DTYPE vm) {
