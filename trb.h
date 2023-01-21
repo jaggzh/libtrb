@@ -3,12 +3,15 @@
 #ifndef _IN_RINGBUFFER_C
 #endif
 #include <stdint.h>
+#include <limits.h>
 
 /* Includer options */
 // #define RB_NO_SHORT_DEFS  // define to not create shortened macros (below)
 
 #ifndef RB_DTYPE
-	#define RB_DTYPE   uint16_t
+	#define RB_DTYPE    uint16_t
+	#define RB_DT_MAX   USHRT_MAX
+	#define RB_DT_MIN   0
 #endif
 
 #define RB_IDXTYPE uint8_t

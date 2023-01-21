@@ -13,6 +13,7 @@
 
 void plot_data_blah(rb_st *rb, rb_st *rb_med);
 void plot_data(rb_st *rb, rb_st *rb_med);
+void plot_val(RB_DTYPE v, RB_DTYPE vm);
 void get_rows_cols(uint16_t *r, uint16_t *c);
 
 rb_st rb_real;
@@ -20,11 +21,13 @@ rb_st *rb=&rb_real;
 rb_st rb_med_real; // Storage of median filter output
 rb_st *rb_med=&rb_med_real;
 
-int opt_plot_vals=0;
-int opt_plot=1;
+#define PT_NUM     0x0001
+#define PT_MEDBUFF 0x0002
+#define PT_MEDINDI 0x0004
+int opts=PT_MEDINDI | PT_NUM;
 
-#define RB_SIZE    10 
-#define RB_WINSIZE 5
+#define RB_SIZE    3 
+#define RB_WINSIZE 3
 #define VRANGE_MID 1000 // random number "input" middle and radius
 #define VRANGE_RAD 100
 
@@ -41,8 +44,19 @@ int opt_plot=1;
 
 uint16_t rows, cols;
 
+void usage() {
+	printf("Ringbuffer_plot_test [options]\n"
+	 " -n for numerical output\n"
+	 " -b for whole buffer chunks processed with a median filter\n"
+	 " default is median filter run on each new value added\n");
+}
+
 int main(int argc, char *argv[]) {
-	if (argc>1 && !strcmp(argv[1], "-n")) opt_plot_vals=1, opt_plot=0;
+	if (argc>1) {
+		if (!strcmp(argv[1], "-n")) opts |= PT_NUM;
+		else if (!strcmp(argv[1], "-b")) opts = (opts & ~PT_MEDINDI) | PT_MEDBUFF;
+		else if (!strcmp(argv[1], "-h")) { usage(); exit(0); }
+	}
 	get_rows_cols(&rows, &cols);
 	ringbuffer_init(rb, RB_WINSIZE);
 	ringbuffer_init(rb_med, RB_WINSIZE);
@@ -61,21 +75,27 @@ int main(int argc, char *argv[]) {
 		int random_value = VRANGE_MID + (rand() % (range*2)) - range;
 		ringbuffer_add(rb, random_value);
 		ctr++;
-		int plot = 1;
-		if (plot || ctr >= rb->sz) {
-			printf(ABBLA "------------------------------------------------" ARST "\n");
-			ctr=0; // reset counter
-			rb_minmax(rb);
-			rb_median(rb, rb_med, window_size);
-			if (opt_plot_vals) {
-				printf("RB :");
-				rb_print(rb);
-				printf("RBM:");
-				rb_print(rb_med);
-				printf("\n");
-			}
-			if (opt_plot) {
-				plot_data(rb, rb_med);
+		if (opts & PT_MEDINDI) {
+			RB_DTYPE m = rb_median1(rb);
+			plot_val(random_value, m); // median value only
+			if (opts & PT_NUM)
+				printf("\033[A%4d(%4d) \n", random_value, m);
+		} else {
+			if (ctr >= rb->sz) {
+				ctr=0; // reset counter
+				rb_minmax(rb);
+				if (opts & PT_MEDBUFF || opts & PT_NUM)
+					rb_median(rb, rb_med, window_size);
+				printf(ABBLA "------------------------------------------------" ARST "\n");
+				if (opts & PT_NUM) {
+					printf("RB :");
+					rb_print(rb);
+					printf("RBM:");
+					rb_print(rb_med);
+					printf("\n");
+				} else {
+					plot_data(rb, rb_med);
+				}
 			}
 		}
 	}
@@ -100,15 +120,37 @@ void get_rows_cols(uint16_t *r, uint16_t *c) {
 	}
 }
 
+void plot_val(RB_DTYPE v, RB_DTYPE vm) {
+    static RB_DTYPE max = RB_DT_MIN;
+    static RB_DTYPE min = RB_DT_MAX;
+    if (max < v) max=v;
+    if (min > v) min=v;
+	get_rows_cols(&rows, &cols); // update
+	/* if (cols > 95) raise(SIGINT); */
+	if (rows<1) rows=39;
+	if (cols<1) cols=85;
+	cols--; // don't cause a wrap
+	/* if (v == vm) raise(SIGINT); */
+	float colperc = (float)(v-min) / (max - min);
+	float colpercm = (float)(vm-min) / (max - min);
+	/* printf("Cols: %d, Colperc: %f %f\n", cols, colperc, colpercm); */
+	int col = (int)(cols * colperc);
+	int colm = (int)(cols * colpercm);
+	printf(ABGRE "\033[%dCM\r", colm-1);
+	printf(AYEL "\033[%dCv\r", col-1);
+	/* printf(" -->%d %d\n", col, colm); */
+	usleep(20000);
+	PNL;
+
+}
+
 void plot_data(rb_st *rb, rb_st *rb_med) {
 	get_rows_cols(&rows, &cols); // update
 	/* if (cols > 95) raise(SIGINT); */
 	if (rows<1) rows=39;
 	if (cols<1) cols=85;
 	cols--; // don't cause a wrap
-	/* printf("rows=%d\n", rows); */
-	/* printf("cols=%d\n", cols); */
-	/* exit(0); */
+	/* printf("rows=%d\n", rows); printf("cols=%d\n", cols); exit(0); */
     RB_DTYPE max_value = rb->mx;
     RB_DTYPE min_value = rb->mn;
 
@@ -121,8 +163,8 @@ void plot_data(rb_st *rb, rb_st *rb_med) {
         /* printf("Cols: %d, Colperc: %f %f\n", cols, colperc, colpercm); */
     	int col = (int)(cols * colperc);
     	int colm = (int)(cols * colpercm);
-        printf(ABGRE "\033[%dC+\r", colm);
-        printf(AYEL "\033[%dC*\r", col);
+        printf(ABGRE "\033[%dCM\r", colm);
+        printf(AYEL "\033[%dCv\r", col);
         /* printf(" -->%d %d\n", col, colm); */
         usleep(20000);
         PNL;
