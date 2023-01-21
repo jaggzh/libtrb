@@ -13,6 +13,7 @@
 
 void plot_data_blah(rb_st *rb, rb_st *rb_med);
 void plot_data(rb_st *rb, rb_st *rb_med);
+void get_rows_cols(uint16_t *r, uint16_t *c);
 
 rb_st rb_real;
 rb_st *rb=&rb_real;
@@ -22,36 +23,55 @@ rb_st *rb_med=&rb_med_real;
 int opt_plot_vals=0;
 int opt_plot=1;
 
+#define RB_SIZE    10 
+#define RB_WINSIZE 5
+#define VRANGE_MID 1000 // random number "input" middle and radius
+#define VRANGE_RAD 100
+
+#define GRAPH_WIDTH 80
+#define AYEL "\x1b[33;1m"
+#define ABGRE "\x1b[32;1m"
+#define ABBLA "\x1b[30;1m"
+#define ARST "\x1b[0m"
+#define PNL printf("\n")
+#define PCR printf("\r")
+#define PFL fflush(stdout)
+#define DEFAULT_ROWS 25
+#define DEFAULT_COLS 75
+
+uint16_t rows, cols;
+
 int main(int argc, char *argv[]) {
-	int rbsize=30;
 	if (argc>1 && !strcmp(argv[1], "-n")) opt_plot_vals=1, opt_plot=0;
-	ringbuffer_init(rb, rbsize);
-	ringbuffer_init(rb_med, rbsize);
+	get_rows_cols(&rows, &cols);
+	ringbuffer_init(rb, RB_WINSIZE);
+	ringbuffer_init(rb_med, RB_WINSIZE);
 	ringbuffer_setall(rb, 0);
 	ringbuffer_setall(rb_med, 0);
 	int window_size = 20;
 	srand(time(0));
 	rb->mn = UINT16_MAX;
 	rb->mx = 0;
+
 	while (1) {
-		#define VRANGE_MID 1000
-		#define VRANGE_RAD 100
+		static int ctr=0;
 		int range;
-		char plot;
 		range = VRANGE_RAD;
 		if (rand() % 100 < 3) range = 400;
 		int random_value = VRANGE_MID + (rand() % (range*2)) - range;
-		if (rb->hd == rb->sz - 1) plot=1;
-		else plot=0;
 		ringbuffer_add(rb, random_value);
-		if (plot) {
-			ringbuffer_minmax(rb);
-			ringbuffer_median_filter2(rb, rb_med, window_size);
+		ctr++;
+		int plot = 1;
+		if (plot || ctr >= rb->sz) {
+			printf(ABBLA "------------------------------------------------" ARST "\n");
+			ctr=0; // reset counter
+			rb_minmax(rb);
+			rb_median(rb, rb_med, window_size);
 			if (opt_plot_vals) {
 				printf("RB :");
-				ringbuffer_print(rb);
+				rb_print(rb);
 				printf("RBM:");
-				ringbuffer_print(rb_med);
+				rb_print(rb_med);
 				printf("\n");
 			}
 			if (opt_plot) {
@@ -61,17 +81,6 @@ int main(int argc, char *argv[]) {
 	}
 	return 0;
 }
-
-#define GRAPH_WIDTH 80
-#define AYEL "\x1b[33;1m"
-#define ABGRE "\x1b[32;1m"
-#define ARST "\x1b[0m"
-#define PNL printf("\n")
-#define PCR printf("\r")
-#define PFL fflush(stdout)
-#define DEFAULT_ROWS 25
-#define DEFAULT_COLS 75
-
 
 void get_rows_cols(uint16_t *r, uint16_t *c) {
 	struct winsize w;
@@ -92,8 +101,7 @@ void get_rows_cols(uint16_t *r, uint16_t *c) {
 }
 
 void plot_data(rb_st *rb, rb_st *rb_med) {
-	uint16_t rows, cols;
-	get_rows_cols(&rows, &cols);
+	get_rows_cols(&rows, &cols); // update
 	/* if (cols > 95) raise(SIGINT); */
 	if (rows<1) rows=39;
 	if (cols<1) cols=85;

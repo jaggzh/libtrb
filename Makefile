@@ -8,9 +8,13 @@ DEBUG=-O0 -ggdb3
 
 all: test
 
-tests: ringbuffer_test_run ringbuffer_plot_run
-
+# Run test, but only build plot
 test: tests
+plot: ringbuffer_plot_run
+tests: ringbuffer_test_run ringbuffer_plot
+
+ringbuffer_test: tests/ringbuffer_test
+ringbuffer_plot: tests/ringbuffer_plot
 
 tests/ringbuffer_test: tests/ringbuffer_test.c ringbuffer.c trb.h
 	gcc -I. $(DEBUG) -Wall -o tests/ringbuffer_test tests/ringbuffer_test.c ringbuffer.c

@@ -3,12 +3,14 @@
 #include "trb.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 void ringbuffer_init(rb_st *rb, RB_IDXTYPE len) {
 	//struct *rb = malloc(sizeof struct ringbuffer_st);
 	if (len<1) len=1; // minimum. sorry.
 	if (!(rb->d = malloc(sizeof(*rb->d) * len))) abort();
-	rb->hd=rb->tl=0;
+	//rb->nx=rb->tl=0;
+	rb->nx = 0;
 	rb->sz = len;
 }
 
@@ -17,10 +19,34 @@ void ringbuffer_setall(rb_st *rb, RB_DTYPE v) {
 }
 
 void ringbuffer_add(rb_st *rb, RB_DTYPE v) {
-	rb->d[rb->hd] = v;
-	rb->hd++;
-	if (rb->hd >= rb->sz) rb->hd = 0;
+	rb->d[rb->nx] = v;
+	rb->nx++;
+	if (rb->nx >= rb->sz) rb->nx = 0;
 }
+
+/* Get last value, with a negative offset. (Last: noff=0. Prior: noff=1. Etc.) */
+RB_DTYPE ringbuffer_get_last(rb_st *rb, RB_IDXTYPE noff) {
+	RB_IDXTYPE idx;
+	if (noff >= rb->sz) abort();
+	/* Internal calculations to ensure we get to the right index
+	 * Most recent valueis at nx-1.  nx=3 does not change in these examples:
+	 *    /-buffer-\
+	 *       /nx
+	 *    210.------  nx==3 means we have 3 values to the left
+	 *    --noff----  noff=0 (LAST actual value is at nx-1)
+	 *    -noff-----  noff=1 (Prior value (noff=1) 
+	 *    ---.-----noff  here noff must reference the last physical, which is sz-1
+	 *                   It would be when user asks for noff=3
+	 *                   ( sz - ((noff=3) - (nx=3)) - 1)
+	 *    ---.-----n-    Data at sz-2.  Noff is 4 here
+	 *                   ( sz - (noff - nx) - 1)
+	 */
+	if (rb->nx > noff) idx = rb->nx - noff - 1; // simple case; no wrap
+	else idx = rb->sz - (noff - rb->nx) - 1;     // wrap to end
+	return rb->d[idx];
+}
+
+void ringbuffer_free(rb_st *rb) { free(rb->d); rb->d=0; }
 
 void ringbuffer_minmax(rb_st *rb) {
 	/* rb->mn=rb->d[0]; */
@@ -36,12 +62,10 @@ void ringbuffer_minmax(rb_st *rb) {
  *  and really is best understood as needing to be an odd number
  *  (start = location - windowsize/2)
  */
-void ringbuffer_median_filter(rb_st *rb, RB_IDXTYPE window_size) {
+void ringbuffer_median_filter_inplace(rb_st *rb, RB_IDXTYPE window_size) {
 	if (window_size < 2) abort(); // better than nothing
     RB_DTYPE temp_data[sizeof(RB_DTYPE) * rb->sz];
-    for (int i = 0; i < rb->sz; i++) {
-        temp_data[i] = rb->d[i];
-    }
+    memcpy(temp_data, rb->d, sizeof(RB_DTYPE) * rb->sz);
     for (int i = 0; i < rb->sz; i++) {
         int start = i - window_size / 2;
         int end = i + window_size / 2;
@@ -61,7 +85,7 @@ void ringbuffer_median_filter(rb_st *rb, RB_IDXTYPE window_size) {
  *  and really is best understood as needing to be an odd number
  *  (start = location - windowsize/2)
  */
-void ringbuffer_median_filter2(rb_st *rb, rb_st *rb_med, RB_IDXTYPE window_size) {
+void ringbuffer_median_filter(rb_st *rb, rb_st *rb_med, RB_IDXTYPE window_size) {
     //RB_DTYPE *temp_data = alloca(sizeof(RB_DTYPE) * rb->sz);
     for (int i = 0; i < rb->sz; i++) {
     	/* printf("[%d]\n", i); fflush(stdout); */
@@ -76,6 +100,14 @@ void ringbuffer_median_filter2(rb_st *rb, rb_st *rb_med, RB_IDXTYPE window_size)
         qsort(median_data, end - start + 1, sizeof(RB_DTYPE), rbutil_cmpfunc);
         rb_med->d[i] = median_data[(end - start + 1) / 2];
     }
+}
+
+// Return single value median of entire buffer. (Even ->sz is 1 higher than center)
+RB_DTYPE ringbuffer_median_filter1(rb_st *rb) {
+    RB_DTYPE temp_data[sizeof(RB_DTYPE) * rb->sz];
+    memcpy(temp_data, rb->d, sizeof(RB_DTYPE) * rb->sz);
+    qsort(temp_data, rb->sz, sizeof(RB_DTYPE), rbutil_cmpfunc);
+    return(temp_data[rb->sz / 2]);
 }
 
 void ringbuffer_print(rb_st *rb) {
