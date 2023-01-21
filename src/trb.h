@@ -1,9 +1,13 @@
 #ifndef _RINGBUFFER_H
 #define _RINGBUFFER_H
 #ifndef _IN_RINGBUFFER_C
-#endif
+#endif // _IN_RINGBUFFER_C
 #include <stdint.h>
 #include <limits.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Includer options */
 // #define RB_NO_SHORT_DEFS  // define to not create shortened macros (below)
@@ -54,5 +58,9 @@ int rbutil_cmpfunc(const void *a, const void *b);
 # define rb_median1(rb) ringbuffer_median_filter1(rb)
 # define rb_print(rb) ringbuffer_print(rb)
 #endif // RB_NO_SHORT_DEFS
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
